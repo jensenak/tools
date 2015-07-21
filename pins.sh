@@ -1,5 +1,3 @@
-#Source this file and use the function to save multiple "cd" locations
-
 pin() {
 	BOLD="$(tput bold)"
 	RED="$BOLD$(tput setaf 1)"
@@ -7,6 +5,7 @@ pin() {
 	GREEN="$BOLD$(tput setaf 2)"
 	BLUE="$BOLD$(tput setaf 4)"
 	RESET="$(tput sgr0)"
+	pinLocation=~/profile.d/.saved-pins
 	if [[ -z $1 ]]
 	then
 		if [[ -z $PIN ]] 
@@ -55,13 +54,13 @@ pin() {
 		done
 	elif [[ $1 == "write" ]]
 	then
-		echo $PINS > ~/.saved_pins
+		echo $PIN > $pinLocation
 		echo "$GREEN Saved$RESET"
 	elif [[ $1 == "get" ]]
 	then
-		if [[ -r ~/profile.d/.saved_pins ]]
+		if [[ -r $pinLocation ]]
 		then
-			export PINS="$(cat ~/profile.d/.saved_pins)"
+			export PIN="$(cat $pinLocation)"
 		fi
 		if [[ -z $2 ]]
 		then 
