@@ -1,6 +1,8 @@
 // Coward - One time or periodic refresh that retreats of anything goes wrong.
 //
 // This tool was designed for use with jQuery 1.9 or later
+//
+// Written by Adam Jensen
 
 function Coward(custom) {
   'use strict';
@@ -52,10 +54,9 @@ function Coward(custom) {
     if (fails > 0) {
       fails--;
       next = Math.round(next/opts.multiple);
-      console.log("Success! Recovered a white flag, now have "+fails+". Next attempt in "+next);
+      console.log("Success! Recovered a white flag, now have "+(opts.retries-fails)+". Next attempt in "+next);
     }
     // Replace the element with the response and set the next run
-    console.log("Success!");
     $(opts.elem).html(data);
     if (next > 0) {
       setTimeout(_run, next);
@@ -117,4 +118,3 @@ function Coward(custom) {
     RunOnce: RunOnce
   };
 }
-
