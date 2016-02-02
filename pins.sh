@@ -44,6 +44,29 @@ pin() {
 			echo " Set pin to $PIN:$YELLOW$(pwd)$RESET"
 			export PIN=$PIN:$(pwd)
 		fi
+    elif [[ $1 == "del" ]]
+    then
+        if [ -z $2 ]
+        then
+            echo "No number given for removal"
+        else
+            IFS=':' read -ra PINS <<< "$PIN"
+            export PIN=""
+            rem=${PINS[$2]}
+            echo Removing $rem
+            for p in "${PINS[@]}"
+            do
+                if [[ "${p}x" != "${rem}x" ]]
+                then
+                    if [[ $PIN == "" ]]
+                    then
+                        export PIN=$p
+                    else
+                        export PIN=$PIN:$p
+                    fi
+                fi
+            done
+        fi
 	elif [[ $1 == "list" ]] 
 	then
 		echo "$BOLD Current pins$RESET"
@@ -78,6 +101,17 @@ pin() {
 		fi	
 	else
 		echo "$RED Option $1 not found"
+        echo ""
+        echo "Valid options are: "
+        echo " [number]     # jump to numbered pin"
+        echo " list         # see numbered pins"
+        echo " set          # set the current directory as only pin"
+        echo " add          # add the current directory to the pin list"
+        echo " del [number] # remove the pin at [number]"
+        echo " write        # save pins to file"
+        echo " get          # retrieve pins from file"
+        echo " get [any]    # list pins"
+        echo " [nothing]    # interactively choose a pin to jump to"
 	fi
 }
 

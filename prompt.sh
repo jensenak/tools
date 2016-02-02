@@ -13,8 +13,16 @@ fi
 #What is today?
 day=$(date +%m-%d\ %R:%S)
 
+#If working dir is too long, trim
+mwd=$PWD
+if [[ ${#mwd} -gt $((TERMWIDTH/2)) ]]
+then
+    halfwide=$((TERMWIDTH/2-3))
+    mwd="...${PWD: -halfwide}"
+fi
+
 #Add the stuff together, see how long it will be (chars)
-promptsize=$(echo -n "${filler}${rooty}$PWD$day" | wc -c | tr -d " ")
+promptsize=$(echo -n "${filler}${rooty}$mwd$day" | wc -c | tr -d " ")
 let fillsize=${TERMWIDTH}-${promptsize}
 fill=""
 
@@ -45,8 +53,8 @@ then
 	then
 		p2=$(__git_ps1)
 	fi
-	PS1="\n$nobg$p1$p2$reset\n$dark$filler $mid$rooty$bright$PWD$dark$fill $light$day$reset\n>> "
+	PS1="\n$nobg$p1$p2$reset\n$dark$filler $mid$rooty$bright$mwd$dark$fill $light$day$reset\n>> "
 else
-	PS1="\n$dark$filler $mid$rooty$bright$PWD$dark$fill $light$day$reset\n>> "
+	PS1="\n$dark$filler $mid$rooty$bright$mwd$dark$fill $light$day$reset\n>> "
 fi
 }
