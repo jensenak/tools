@@ -14,13 +14,13 @@ if [[ $1 == "-c" ]]; then
 	for f in "$@"
 	do
 		echo "Copying $f to $shoveDir"
-		cp $f "$shoveDir"
+		cp "$f" "$shoveDir"
 	done
 else
 	for f in "$@"
 	do
 		echo "Moving $f to $shoveDir"
-		mv $f "$shoveDir"
+		mv "$f" "$shoveDir"
 	done
 fi
 }

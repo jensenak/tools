@@ -17,6 +17,7 @@ day=$(date +%m-%d\ %R:%S)
 mwd=$PWD
 if [[ ${#mwd} -gt $((TERMWIDTH/2)) ]]
 then
+    # shellcheck disable=2034
     halfwide=$((TERMWIDTH/2-3))
     mwd="...${PWD: -halfwide}"
 fi
@@ -35,8 +36,8 @@ done
 
 #Set colors and shades and resets and stuff
 reset="\033[0m"
-bright="\033[1;32;100m"
-light="\033[1;34;100m"
+bright="\033[0;32;100m"
+light="\033[0;33;100m"
 mid="\033[0;33;100m"
 dark="\033[0;30;100m"
 nobg="\033[1;35m"
@@ -45,9 +46,10 @@ nobg="\033[1;35m"
 if [[ -n $VIRTUAL_ENV ]] || [[ -n $(__git_ps1) ]]
 then
 	p1=' '
+    p2=' '
 	if [[ -n $VIRTUAL_ENV ]]
 	then 
-		p1=$(basename $VIRTUAL_ENV)
+		p1=$(basename "$VIRTUAL_ENV")
 	fi
 	if [[ -n $(__git_ps1) ]]
 	then

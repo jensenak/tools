@@ -1,3 +1,4 @@
+# shellcheck disable=2155
 pin() {
 	BOLD="$(tput bold)"
 	RED="$BOLD$(tput setaf 1)"
@@ -19,15 +20,15 @@ pin() {
 				i=0
 				for l in "${PINS[@]}"
 				do
-					echo $BLUE $i $RESET $l
+					echo "$BLUE $i $RESET $l"
 					i=$((i+1))
 				done
-				read opt
+				read -r opt
 				echo " Jumping to $GREEN${PINS[$opt]}$RESET"
-				cd ${PINS[$opt]}
+				cd "${PINS[$opt]}" || exit 1
 			else
 				echo " Jumping to $GREEN$PIN$RESET"
-				cd $PIN
+				cd "$PIN" || exit 1
 			fi
 		fi
 	elif [[ $1 == "set" ]]
@@ -46,14 +47,14 @@ pin() {
 		fi
     elif [[ $1 == "del" ]]
     then
-        if [ -z $2 ]
+        if [ -z "$2" ]
         then
             echo "No number given for removal"
         else
             IFS=':' read -ra PINS <<< "$PIN"
             export PIN=""
-            rem=${PINS[$2]}
-            echo Removing $rem
+            rem="${PINS[$2]}"
+            echo "Removing $rem"
             for p in "${PINS[@]}"
             do
                 if [[ "${p}x" != "${rem}x" ]]
@@ -73,11 +74,11 @@ pin() {
 		IFS=':' read -ra PINS <<< "$PIN"
 		for l in "${PINS[@]}"
 		do
-			echo $l
+			echo "$l"
 		done
 	elif [[ $1 == "write" ]]
 	then
-		echo $PIN > $pinLocation
+		echo "$PIN" > "$pinLocation"
 		echo "$GREEN Saved$RESET"
 	elif [[ $1 == "get" ]]
 	then
@@ -95,7 +96,7 @@ pin() {
 		if [[ ${#PINS[@]} -gt $1 ]]
 		then
 			echo " Jumping to $GREEN${PINS[$1]}$RESET"
-			cd ${PINS[$1]}
+			cd "${PINS[$1]}" || exit 1
 		else
 			echo " Pin $1 not found"
 		fi	
