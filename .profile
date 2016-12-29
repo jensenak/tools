@@ -32,6 +32,15 @@ if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"
 fi
 
+HISTTIMEFORMAT='%F %T '
+HISTFILESIZE=-1
+HISTSIZE=-1
+HISTCONTROL=ignoredups
+HISTIGNORE='?:??'
+shopt -s histappend
+shopt -s cmdhist
+shopt -s lithist
+
 source /usr/local/etc/bash_completion
 export GIT_PS1_SHOWDIRTYSTATE=true
 
@@ -42,8 +51,8 @@ export PROMPT_COMMAND='getPrompt'
 
 LSCOLORS='exgxHxDxCxaDedecgcEhEa'
 export LSCOLORS
-export GOPATH=/home/akj/go
-export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH:/usr/local/opt/go/libexec/bin"
+export GOPATH=/Users/akj/go
+export PATH="/Users/akj/gbin:$PATH:/usr/local/opt/go/libexec/bin"
 export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:/usr/share/man:/usr/local/share/man:/usr/X11/share/man"
 export shoveDir=/tmp/shove
 export HOMEBREW_GITHUB_API_TOKEN=384a0c1ddadf28de8aad62a812b6efcbc8e5fc18
@@ -78,11 +87,12 @@ alias bs='edit_profile'
 alias retry='edit_profile true'
 alias cleanup='clean_profiles'
 alias undo='undo_profile_change'
+alias lsp='list_profiles'
 alias sb='. ~/.profile'
 alias bp='vi ~/profile.d; . ~/.profile'
 alias pshs='python -m SimpleHTTPServer 8585'
 alias da='deactivate'
-alias ls='ls -G'
+alias ls='ls --color=always'
 alias ll='ls -lah'
 alias lg='ls -lah | grep'
 alias lsi='~/tools/lsi.sh'
@@ -109,6 +119,21 @@ edit_profile() {
         profileName=$(_copy_profile)
     fi
     _edit_profile "$profileName"
+}
+
+list_profiles() {
+    if [ -d ~/tmp ]
+    then
+        ls -1 ~/tmp
+    fi
+    if [ -f ~/.profile.redo ]
+    then
+        printf ".profile.redo exists from a rollback"
+    fi
+    if [ -f ~/.profile.bak ]
+    then
+        printf ".profile.bak exists"
+    fi
 }
 
 _copy_profile() {
@@ -145,6 +170,7 @@ _edit_profile() {
         if [ $? -ne 0 ]
         then
             printf "%s ## Your edits have introduced errors, not sourcing file ## %s\n" "$RED" "$RESET"
+            printf "The following commands may help you:\n lsp -> list profile versions\n retry -> edit a profile version\n undo -> revert to the profile backup \n cleanup -> discard profile versions"
         else
             printf "%s ## Your edits look good, sourcing file ## %s\n" "$GREEN" "$RESET"
             cp ~/.profile ~/.profile.bak
