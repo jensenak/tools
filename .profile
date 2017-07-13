@@ -31,16 +31,7 @@ fi
 if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"
 fi
-
-HISTTIMEFORMAT='%F %T '
-HISTFILESIZE=-1
-HISTSIZE=-1
-HISTCONTROL=ignoredups
-HISTIGNORE='?:??'
-shopt -s histappend
-shopt -s cmdhist
-shopt -s lithist
-
+set -o vi
 source /usr/local/etc/bash_completion
 export GIT_PS1_SHOWDIRTYSTATE=true
 
@@ -57,6 +48,7 @@ export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:/usr/share/man:/usr/loca
 export shoveDir=/tmp/shove
 export HOMEBREW_GITHUB_API_TOKEN=384a0c1ddadf28de8aad62a812b6efcbc8e5fc18
 export GREP_COLORS='1;33;44'
+export FLASK_APP=main.py
 _done $?
 
 
@@ -80,6 +72,8 @@ if [ -d ~/profile.d ]; then
 	done
 fi
 
+tab_random
+
 #BASH PROMPT SECTION
 printf "\033[0mSetting aliases ..."
 #ALIAS SECTION
@@ -98,6 +92,12 @@ alias lg='ls -lah | grep'
 alias lsi='~/tools/lsi.sh'
 alias icat='~/tools/imgcat.sh'
 alias grep='grep --color=always'
+alias gokid='cd ~/repos/notes/scripts/kount-intg-deployer'
+alias next='~/repos/notes/scripts/next'
+alias gpa='gitpullall'
+alias gpd='gitpulldirs'
+alias ravenproxy='ssh -CnfND 8080 raven'
+alias fh='fixhost'
 _done $?
 #FUNCTIONS FOR FUN AND AWESOMENESS
 
@@ -205,17 +205,17 @@ venv() {
     venv_path=~/virtual_envs/
     if [[ -z $1 ]]
     then
-        if [[ -d ~/$venv_path/$b ]]
+        if [[ -d $venv_path/$b ]]
         then
-            source "$HOME/$venv_path/$b/bin/activate"
+            source "$venv_path/$b/bin/activate"
         else
             printf "Could not find virtual env for %s\n" "$b"
         fi
     else
         if [[ $1 == "2" || $1 == "3" ]]
         then
-            virtualenv -p "python$1" "$HOME/$venv_path/$b"
-            source "$HOME/$venv_path/$b/bin/activate"
+            virtualenv -p "python$1" "$venv_path/$b"
+            source "${venv_path}$b/bin/activate"
         else
             printf "Python version must be 2 or 3"
         fi
@@ -240,6 +240,28 @@ pullall() {
         fi
     done
     cd "$PWDsave" || exit 1
+}
+
+fixhost() {
+    if [ -z "$1" ]
+    then
+        printf "Please specify a line number to delete\n"
+        return
+    fi
+    sed -i "${1}d" ~/.ssh/known_hosts
+}
+
+gitpulldirs() {
+    find . -type d -depth 1 -exec git --git-dir={}/.git --work-tree="$PWD"/{} pull \;
+}
+
+gitpullall() {
+    START=$(git symbolic-ref --short -q HEAD);
+    for branch in $(git branch | sed 's/^.//'); do
+        git checkout "$branch"
+        git pull "${1:-origin}" "$branch" || break
+    done
+    git checkout "$START"
 }
 
 #Colorize stderr
