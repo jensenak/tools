@@ -10,7 +10,6 @@
 #umask 022
 
 [ -z "$PS1" ] && return
-
 _done() {
 	if [[ $1 -eq 0 ]]; then
 		printf "[\033[0;32m done \033[0m]\n"
@@ -34,39 +33,42 @@ fi
 set -o vi
 source /usr/local/etc/bash_completion
 export GIT_PS1_SHOWDIRTYSTATE=true
-
-printf "Loading env vars ... "
+export HISTCONTROL=ingoredups:erasedups
+export HISTSIZE=100000
+export HISTFILESIZE=100000
+shopt -s histappend
+[ "$TERM" != "unknown" ] && printf "Loading env vars ... "
 #ENVIRONMENT VARS I WANT SET
-export PROMPT_COMMAND='getPrompt'
+export PROMPT_COMMAND='history -a; getPrompt'
 #'history -a; history -c; history -r; getPrompt'
 
 LSCOLORS='exgxHxDxCxaDedecgcEhEa'
 export LSCOLORS
 export GOPATH=/Users/akj/go
-export PATH="/Users/akj/gbin:$PATH:/usr/local/opt/go/libexec/bin"
+export PATH="/Users/akj/gbin:$GOPATH/bin:$PATH:/usr/local/opt/go/libexec/bin:/usr/local/sbin"
 export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:/usr/share/man:/usr/local/share/man:/usr/X11/share/man"
 export shoveDir=/tmp/shove
-export HOMEBREW_GITHUB_API_TOKEN=384a0c1ddadf28de8aad62a812b6efcbc8e5fc18
+export PYTHONSTARTUP=$HOME/.pythonrc.py
 export GREP_COLORS='1;33;44'
-export FLASK_APP=main.py
-_done $?
+[ "$TERM" != "unknown" ] && _done $?
 
 
-printf "Dynamic files: \n"
+ 
+[ "$TERM" != "unknown" ] && printf "Dynamic files: \n"
 #Source everything in profile.d
 INDENT=$(echo -e "  \xe2\x86\xb3")
 if [ -d ~/profile.d ]; then
 	for i in ~/profile.d/*.sh; do
 		if [ -r "$i" ]; then
             # shellcheck disable=SC2086
-			printf "%s %s ... " "$INDENT" "$(basename $i)"
+			[ "$TERM" != "unknown" ] && printf "%s %s ... " "$INDENT" "$(basename $i)"
             shellcheck -s bash "$i" > /dev/null
             if [ $? -ne 0 ]
             then
-                _done 1
+                [ "$TERM" != "unknown" ] && _done 1
             else
 			    source "$i"
-			    _done $?
+			    [ "$TERM" != "unknown" ] && _done $?
             fi
 		fi
 	done
@@ -75,7 +77,7 @@ fi
 tab_random
 
 #BASH PROMPT SECTION
-printf "\033[0mSetting aliases ..."
+[ "$TERM" != "unknown" ] && printf "\033[0mSetting aliases ..."
 #ALIAS SECTION
 alias bs='edit_profile'
 alias retry='edit_profile true'
@@ -98,12 +100,42 @@ alias gpa='gitpullall'
 alias gpd='gitpulldirs'
 alias ravenproxy='ssh -CnfND 8080 raven'
 alias fh='fixhost'
-_done $?
+alias y2j="python3 -c 'import sys, yaml, json; yaml.add_multi_constructor(\"!\", lambda loader, suffix, node: None); json.dump(yaml.load(sys.stdin), sys.stdout, indent=4)'"
+alias dcp="docker-compose"
+alias dm="docker-machine"
+alias dmstart='eval $(docker-machine env akj1)'
+alias netstat='lsof -PMni4 | grep LISTEN'
+alias realnestat='netstat'
+alias ap='aws_profile'
+alias ar='aws_region'
+[ "$TERM" != "unknown" ] && _done $?
 #FUNCTIONS FOR FUN AND AWESOMENESS
 
-# Edits this file, but performs shell check before sourcing it again
+ecsami() {
+    printf "%s" "$(aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux/recommended | python -c 'import sys, json; json.dump(json.loads(json.load(sys.stdin)["Parameters"][0]["Value"])["image_id"], sys.stdout)')"
+}
+
+aws_profile() {
+    if [ -z "$1" ]
+    then
+        printf "Unsetting profile\nAvailable profiles are:\n"
+        grep -oP '(?<=profile )(\w+)' ~/.aws/config
+    fi
+    export AWS_PROFILE="$1"
+}
+
+aws_region() {
+    if [ -z "$1" ]
+    then
+        printf "Using default region for your profile\n"
+        unset AWS_DEFAULT_REGION
+    else
+        export AWS_DEFAULT_REGION="$1"
+    fi
+}
+
 clean_profiles() {
-    find ~/tmp/ -type f -delete
+    find ~/tmp/ -name 'profile*' -type f -delete
 }
 
 undo_profile_change() {
@@ -111,6 +143,7 @@ undo_profile_change() {
     cp ~/.profile.bak ~/.profile
 }
 
+# Edits this file, but performs shell check before sourcing it again
 edit_profile() {
     if [ "$1" ]
     then
@@ -124,7 +157,7 @@ edit_profile() {
 list_profiles() {
     if [ -d ~/tmp ]
     then
-        ls -1 ~/tmp
+        ls -1 ~/tmp/profile*
     fi
     if [ -f ~/.profile.redo ]
     then
@@ -149,7 +182,7 @@ _copy_profile() {
 
 _retry_profile() {
     PS3="Select a profile copy to start editing: "
-    select profileName in ~/tmp/*
+    select profileName in ~/tmp/profile*
     do
         printf "%s" "$profileName"
         break
@@ -158,6 +191,7 @@ _retry_profile() {
 
 _edit_profile() {
     RED=$(tput setaf 1)
+    YELLOW=$(tput setaf 3)
     GREEN=$(tput setaf 2)
     RESET=$(tput sgr0)
     profileName=$1
@@ -166,6 +200,13 @@ _edit_profile() {
         printf "%s Could not find tmp file '%s' for editing %s" "$RED" "$profileName" "$RESET"
     else
         vi "$profileName"
+        existing="$(md5sum ~/.profile | awk '{ print $1 }')"
+        changed="$(md5sum "$profileName" | awk '{ print $1 }')"
+        if [ "$existing" = "$changed" ]
+        then
+            printf "%s ## Nothing changed ## %s\n" "$YELLOW" "$RESET"
+            return
+        fi
         shellcheck -s bash "$profileName"
         if [ $? -ne 0 ]
         then
@@ -217,7 +258,10 @@ venv() {
             virtualenv -p "python$1" "$venv_path/$b"
             source "${venv_path}$b/bin/activate"
         else
-            printf "Python version must be 2 or 3"
+            if [[ -d "$venv_path/$1" ]]
+            then
+                source "$venv_path/$1/bin/activate"
+            fi
         fi
     fi
 }

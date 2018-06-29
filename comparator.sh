@@ -32,6 +32,8 @@ while getopts "vfrh" opt; do
       echo " -r   reverse only"
       echo ""
       echo "If no source or destination is given, defaults are used"
+      echo ""
+      echo "Using $(which sed)"
       exit 0
       ;;
   esac
@@ -44,17 +46,21 @@ dst=$2
 if [ -z $1 ]; then
   src=$DEFAULTSRC
 fi
-if [ -z $2]; then
+if [ -z $2 ]; then
   dst=$DEFAULTDST
 fi
 
 compare() {
   a=$1
   b=$2
+  if [[ $verbose -gt 2 ]]; then
+    echo "${BLUE}Looking at $a and $b${RESET}"
+  fi
   csa=0
   cdf=0
   cno=0
-  for f in `find $a -type f | sed "s $a/  "`
+  cd $a
+  for f in `find . -type f`
   do
     if [[ $verbose -gt 1 ]]; then
       echo "${WHITE}Comparing $f and $b/$f$RESET"
@@ -82,6 +88,7 @@ compare() {
       cno=$((cno+1))
     fi
   done
+  cd -
   echo "${WHITE}SAME: $csa$RESET"
   echo "${WHITE}DIFF: $cdf$RESET"
   echo "${WHITE}NOPE: $cno$RESET"
