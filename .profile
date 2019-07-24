@@ -11,18 +11,18 @@
 
 [ -z "$PS1" ] && return
 _done() {
-	if [[ $1 -eq 0 ]]; then
-		printf "[\033[0;32m done \033[0m]\n"
-	else
-		printf "[\033[0;31m failed \033[0m]\n"
-	fi
+    if [[ $1 -eq 0 ]]; then
+        printf "[\033[0;32m done \033[0m]\n"
+    else
+        printf "[\033[0;31m failed \033[0m]\n"
+    fi
 }
 
 # if running bash
 if [ -n "$BASH_VERSION" ]; then
     # include .bashrc if it exists
     if [ -f "$HOME/.bashrc" ]; then
-	source "$HOME/.bashrc"
+    source "$HOME/.bashrc"
     fi
 fi
 
@@ -42,14 +42,16 @@ shopt -s histappend
 export PROMPT_COMMAND='history -a; getPrompt'
 #'history -a; history -c; history -r; getPrompt'
 
+
 LSCOLORS='exgxHxDxCxaDedecgcEhEa'
 export LSCOLORS
-export GOPATH=/Users/akj/go
-export PATH="/Users/akj/gbin:$GOPATH/bin:$PATH:/usr/local/opt/go/libexec/bin:/usr/local/sbin"
+export PATH="$HOME/gbin:$PATH:/usr/local/sbin:$HOME/.rvm/bin"
 export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:/usr/share/man:/usr/local/share/man:/usr/X11/share/man"
 export shoveDir=/tmp/shove
-export PYTHONSTARTUP=$HOME/.pythonrc.py
 export GREP_COLORS='1;33;44'
+#export AWS_PROFILE=core-nonprod
+export AWS_DEFAULT_REGION=us-west-2
+export NODE_OPTIONS="--max-old-space-size=4096"
 [ "$TERM" != "unknown" ] && _done $?
 
 
@@ -58,27 +60,29 @@ export GREP_COLORS='1;33;44'
 #Source everything in profile.d
 INDENT=$(echo -e "  \xe2\x86\xb3")
 if [ -d ~/profile.d ]; then
-	for i in ~/profile.d/*.sh; do
-		if [ -r "$i" ]; then
+    for i in ~/profile.d/*.sh; do
+        if [ -r "$i" ]; then
             # shellcheck disable=SC2086
-			[ "$TERM" != "unknown" ] && printf "%s %s ... " "$INDENT" "$(basename $i)"
-            shellcheck -s bash "$i" > /dev/null
-            if [ $? -ne 0 ]
+            [ "$TERM" != "unknown" ] && printf "%s %s ... " "$INDENT" "$(basename $i)"
+            if ! shellcheck -s bash "$i" > /dev/null
             then
                 [ "$TERM" != "unknown" ] && _done 1
             else
-			    source "$i"
-			    [ "$TERM" != "unknown" ] && _done $?
+                source "$i"
+                [ "$TERM" != "unknown" ] && _done $?
             fi
-		fi
-	done
+        fi
+    done
 fi
+
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
 
 tab_random
 
 #BASH PROMPT SECTION
 [ "$TERM" != "unknown" ] && printf "\033[0mSetting aliases ..."
 #ALIAS SECTION
+alias grep='ggrep --color=always'
 alias bs='edit_profile'
 alias retry='edit_profile true'
 alias cleanup='clean_profiles'
@@ -88,19 +92,17 @@ alias sb='. ~/.profile'
 alias bp='vi ~/profile.d; . ~/.profile'
 alias pshs='python -m SimpleHTTPServer 8585'
 alias da='deactivate'
-alias ls='ls --color=always'
 alias ll='ls -lah'
 alias lg='ls -lah | grep'
 alias lsi='~/tools/lsi.sh'
 alias icat='~/tools/imgcat.sh'
-alias grep='grep --color=always'
 alias gokid='cd ~/repos/notes/scripts/kount-intg-deployer'
 alias next='~/repos/notes/scripts/next'
 alias gpa='gitpullall'
 alias gpd='gitpulldirs'
 alias ravenproxy='ssh -CnfND 8080 raven'
 alias fh='fixhost'
-alias y2j="python3 -c 'import sys, yaml, json; yaml.add_multi_constructor(\"!\", lambda loader, suffix, node: None); json.dump(yaml.load(sys.stdin), sys.stdout, indent=4)'"
+alias y2j="python3 -c 'import sys, yaml, json; yaml.add_multi_constructor(\"!\", lambda loader, suffix, node: \"{} {}\".format(suffix, node.value)); json.dump(yaml.load(sys.stdin), sys.stdout, indent=4, sort_keys=True, default=str)'"
 alias dcp="docker-compose"
 alias dm="docker-machine"
 alias dmstart='eval $(docker-machine env akj1)'
@@ -113,6 +115,15 @@ alias ar='aws_region'
 
 ecsami() {
     printf "%s" "$(aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux/recommended | python -c 'import sys, json; json.dump(json.loads(json.load(sys.stdin)["Parameters"][0]["Value"])["image_id"], sys.stdout)')"
+}
+
+jump() {
+    benv="${2:-dev}"
+    ssh -i ~/.ssh/keet-dev.pem "ec2-user@$1" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$benv"
+}
+
+prox() {
+    ssh -i ~/.ssh/keet-dev.pem -L "$1:$2:$3" "ec2-user@$2" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-dev"
 }
 
 aws_profile() {
@@ -207,8 +218,7 @@ _edit_profile() {
             printf "%s ## Nothing changed ## %s\n" "$YELLOW" "$RESET"
             return
         fi
-        shellcheck -s bash "$profileName"
-        if [ $? -ne 0 ]
+        if ! shellcheck -s bash "$profileName"
         then
             printf "%s ## Your edits have introduced errors, not sourcing file ## %s\n" "$RED" "$RESET"
             printf "The following commands may help you:\n lsp -> list profile versions\n retry -> edit a profile version\n undo -> revert to the profile backup \n cleanup -> discard profile versions"
@@ -292,7 +302,7 @@ fixhost() {
         printf "Please specify a line number to delete\n"
         return
     fi
-    sed -i "${1}d" ~/.ssh/known_hosts
+    gsed -i "${1}d" ~/.ssh/known_hosts
 }
 
 gitpulldirs() {
@@ -311,3 +321,4 @@ gitpullall() {
 #Colorize stderr
 # usage: colorize COMMAND [ARGS...]
 colorize()(set -o pipefail; "$@" 2>&1>&3|sed $'s/.*/\e[1;31m&\e[m/'>&2)3>&1
+
