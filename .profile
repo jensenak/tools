@@ -8,6 +8,7 @@
 # the default umask is set in /etc/profile; for setting the umask
 # for ssh logins, install and configure the libpam-umask package.
 #umask 022
+export TRAIL="$TRAIL:profile"
 
 [ -z "$PS1" ] && return
 _done() {
@@ -32,6 +33,7 @@ if [ -d "$HOME/bin" ] ; then
 fi
 set -o vi
 source /usr/local/etc/bash_completion
+export PATH="$PATH:/usr/local/sbin:/Users/adamjensen/Library/Python/3.7/bin"
 export GIT_PS1_SHOWDIRTYSTATE=true
 export HISTCONTROL=ingoredups:erasedups
 export HISTSIZE=100000
@@ -42,18 +44,17 @@ shopt -s histappend
 export PROMPT_COMMAND='history -a; getPrompt'
 #'history -a; history -c; history -r; getPrompt'
 
-
 LSCOLORS='exgxHxDxCxaDedecgcEhEa'
 export LSCOLORS
-export PATH="$HOME/gbin:$PATH:/usr/local/sbin:$HOME/.rvm/bin"
 export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:/usr/share/man:/usr/local/share/man:/usr/X11/share/man"
 export shoveDir=/tmp/shove
 export GREP_COLORS='1;33;44'
+export tgm="--terragrunt-source /Users/adamjensen/repos/infra-modules/"
 #export AWS_PROFILE=core-nonprod
 export AWS_DEFAULT_REGION=us-west-2
 export NODE_OPTIONS="--max-old-space-size=4096"
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home
 [ "$TERM" != "unknown" ] && _done $?
-
 
  
 [ "$TERM" != "unknown" ] && printf "Dynamic files: \n"
@@ -75,13 +76,13 @@ if [ -d ~/profile.d ]; then
     done
 fi
 
-[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
-
 tab_random
 
 #BASH PROMPT SECTION
 [ "$TERM" != "unknown" ] && printf "\033[0mSetting aliases ..."
 #ALIAS SECTION
+alias glog='git log --pretty=oneline -n10'
+alias uuid='python3 -c "from uuid import uuid4; print(uuid4());"'
 alias grep='ggrep --color=always'
 alias bs='edit_profile'
 alias retry='edit_profile true'
@@ -110,6 +111,7 @@ alias netstat='lsof -PMni4 | grep LISTEN'
 alias realnestat='netstat'
 alias ap='aws_profile'
 alias ar='aws_region'
+alias pip3='python3 -m pip'
 [ "$TERM" != "unknown" ] && _done $?
 #FUNCTIONS FOR FUN AND AWESOMENESS
 
@@ -117,13 +119,37 @@ ecsami() {
     printf "%s" "$(aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux/recommended | python -c 'import sys, json; json.dump(json.loads(json.load(sys.stdin)["Parameters"][0]["Value"])["image_id"], sys.stdout)')"
 }
 
-jump() {
-    benv="${2:-dev}"
-    ssh -i ~/.ssh/keet-dev.pem "ec2-user@$1" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$benv"
+prox() {
+    ssh -i ~/.ssh/keet-dev.pem -L "$2:$3:$4" "ec2-user@$3" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$1"
 }
 
-prox() {
-    ssh -i ~/.ssh/keet-dev.pem -L "$1:$2:$3" "ec2-user@$2" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-dev"
+ecsip () {
+  env="$1" # First arg is environment, e.g. dev, qa02, prod02
+  svc="$2" # Second arg is service name, e.g. keet-api-web
+  task_arn="$(aws ecs list-tasks --cluster "$env"-ecs-cluster --service "$svc" | jq -r '.taskArns[0]')";
+  cont_id="$(aws ecs describe-tasks --cluster "$env"-ecs-cluster --task "$task_arn" | jq -r '.tasks[0].containerInstanceArn')";
+  ec2_id="$(aws ecs describe-container-instances --cluster "$env"-ecs-cluster --container-instances "$cont_id" | jq -r '.containerInstances[0].ec2InstanceId')";
+  aws ec2 describe-instances --instance-id "$ec2_id" | jq -r '.Reservations[0].Instances[0].NetworkInterfaces[0].PrivateIpAddress'
+}
+
+hop() {
+  env="$1" # First arg is environment, e.g. dev, qa02, prod02
+  ip="$2"
+  ssh -i ~/.ssh/jensenak_id_rsa "adam@$ip" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$env"
+}
+
+jump() {
+  env="$1" # First arg is environment, e.g. dev, qa02, prod02
+  ip="$2"
+  ssh -i ~/.ssh/keet-dev.pem "ec2-user@$ip" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$env"
+}
+
+jumps() {
+  env="$1" # First arg is environment, e.g. dev, qa02, prod02
+  svc="$2" # Second arg is service name, e.g. keet-api-web
+  ip="$(ecsip "$env" "$svc")"
+  bastion_suffix=${env//[0-9]/}
+  ssh -i ~/.ssh/keet-dev.pem "ec2-user@$ip" -o "proxycommand ssh -W %h:%p -i ~/.ssh/jensenak_id_rsa adam@bastion-$bastion_suffix"
 }
 
 aws_profile() {
@@ -258,19 +284,19 @@ venv() {
     then
         if [[ -d $venv_path/$b ]]
         then
-            source "$venv_path/$b/bin/activate"
+            source "$venv_path/$b/usr/local/bin/activate"
         else
             printf "Could not find virtual env for %s\n" "$b"
         fi
     else
         if [[ $1 == "2" || $1 == "3" ]]
         then
-            virtualenv -p "python$1" "$venv_path/$b"
-            source "${venv_path}$b/bin/activate"
+            virtualenv -p "python$1" --activators bash "$venv_path/$b"
+            source "${venv_path}$b/usr/local/bin/activate"
         else
             if [[ -d "$venv_path/$1" ]]
             then
-                source "$venv_path/$1/bin/activate"
+                source "$venv_path/$1/usr/local/bin/activate"
             fi
         fi
     fi
@@ -322,3 +348,9 @@ gitpullall() {
 # usage: colorize COMMAND [ARGS...]
 colorize()(set -o pipefail; "$@" 2>&1>&3|sed $'s/.*/\e[1;31m&\e[m/'>&2)3>&1
 
+# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
+
+# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
+export PATH="$PATH:$HOME/.rvm/bin"
+
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
